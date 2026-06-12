@@ -1,0 +1,28 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - govet
+    - staticcheck
+    - gosec
+    - errcheck
+    - unused
+    - gosimple
+
+linters-settings:
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: github.com/edivilsondalacosta/feature-voting-system
+  gosec:
+    excludes:
+      - G304
+
+issues:
+  exclude-rules:
+    - path: "_test.go"
+      linters:
+        - gosec

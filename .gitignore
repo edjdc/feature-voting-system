@@ -1,0 +1,31 @@
+# Binaries
+bin/
+*.exe
+*.test
+*.out
+
+# Go build cache
+/tmp/
+
+# Environment files (never commit secrets)
+deploy/.env
+.env
+
+# Vendor
+vendor/
+
+# Test coverage
+coverage.out
+coverage.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# sqlc generated (can be regenerated)
+# internal/repository/postgres/*.sql.go
