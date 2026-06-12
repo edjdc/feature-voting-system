@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 )
@@ -52,7 +53,8 @@ func (s *RankingService) List(ctx context.Context, params ListParams) (*RequestP
 	if len(items) > params.Limit {
 		items = items[:params.Limit]
 		last := items[len(items)-1]
-		cursor := last.ID
+		raw := fmt.Sprintf("%s|%d|%d", last.ID, last.CreatedAt.UnixNano(), last.VoteCount)
+		cursor := base64.RawURLEncoding.EncodeToString([]byte(raw))
 		nextCursor = &cursor
 	}
 

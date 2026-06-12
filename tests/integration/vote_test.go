@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/edivilsondalacosta/feature-voting-system/internal/handler"
-	"github.com/edivilsondalacosta/feature-voting-system/internal/middleware"
 	"github.com/edivilsondalacosta/feature-voting-system/internal/observability"
 	pgRepo "github.com/edivilsondalacosta/feature-voting-system/internal/repository/postgres"
 	"github.com/edivilsondalacosta/feature-voting-system/internal/service"

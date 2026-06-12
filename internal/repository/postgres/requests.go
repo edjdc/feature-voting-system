@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -120,14 +121,23 @@ type rawCursor struct {
 }
 
 func decodeCursorRaw(encoded string) (*rawCursor, error) {
-	var id string
-	var nanos int64
-	var voteCount int32
-	_, err := fmt.Sscanf(encoded, "%s|%d|%d", &id, &nanos, &voteCount)
+	b, err := base64.RawURLEncoding.DecodeString(encoded)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid cursor encoding: %w", err)
 	}
-	return &rawCursor{id: id, createdAt: time.Unix(0, nanos).UTC(), voteCount: voteCount}, nil
+	parts := strings.SplitN(string(b), "|", 3)
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("invalid cursor format: expected 3 parts, got %d", len(parts))
+	}
+	var nanos int64
+	if _, err := fmt.Sscanf(parts[1], "%d", &nanos); err != nil {
+		return nil, fmt.Errorf("invalid cursor timestamp: %w", err)
+	}
+	var voteCount int32
+	if _, err := fmt.Sscanf(parts[2], "%d", &voteCount); err != nil {
+		return nil, fmt.Errorf("invalid cursor vote_count: %w", err)
+	}
+	return &rawCursor{id: parts[0], createdAt: time.Unix(0, nanos).UTC(), voteCount: voteCount}, nil
 }
 
 func scanRequest(row pgx.Row) (*service.FeatureRequest, error) {

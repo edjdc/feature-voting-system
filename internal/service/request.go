@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -131,6 +132,6 @@ func (s *RequestService) GetByID(ctx context.Context, id, viewerID string) (*Fea
 }
 
 func encodeCursor(req FeatureRequest) string {
-	// cursor is opaque — encoded in the handler layer
-	return req.ID
+	raw := fmt.Sprintf("%s|%d|%d", req.ID, req.CreatedAt.UnixNano(), req.VoteCount)
+	return base64.RawURLEncoding.EncodeToString([]byte(raw))
 }

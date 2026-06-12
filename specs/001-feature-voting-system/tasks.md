@@ -200,7 +200,7 @@ Single Go web-service project (per plan.md): `cmd/server/`, `internal/{config,ha
 - [X] T070 [P] Run `make vuln` (govulncheck) and remediate any findings
 - [X] T071 [P] Update root `README.md` and `docs/` with run/build/test instructions and architecture overview
 - [X] T072 Review pgx pool limits, Redis timeouts, and rate-limit defaults for spike resilience (SC-004)
-- [ ] T073 Execute `quickstart.md` Scenarios A–F end-to-end against `docker compose up` and confirm all expected results
+- [X] T073 Execute `quickstart.md` Scenarios A–F end-to-end against `docker compose up` and confirm all expected results
 - [X] T074 [P] Load test for normal-load vote success rate: 50 concurrent distinct voters at steady-state, assert ≥95% first-try success rate (SC-008) in `tests/integration/vote_load_test.go` (`//go:build integration`)
 
 ---
