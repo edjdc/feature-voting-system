@@ -307,3 +307,22 @@ The command is terminated due to an error: the configuration contains invalid el
 SUMMARY:
 Fixed two golangci-lint v2 schema validation errors in .golangci.yml: changed goimports.local-prefixes from a string to an array, and moved issues.exclude-rules to linters.exclusions.rules (the correct v2 location). Config now passes `golangci-lint config verify`.
 ========================================================================
+
+========================================================================
+2026-06-12T00:00:00Z
+------------------------------------------------------------------------
+PROMPT:
+Create a demo.sh script that executes curl commands for end-to-end (E2E) testing
+
+SUMMARY:
+demo.sh — committed, executable, and validated end-to-end against your live stack.
+========================================================================
+========================================================================
+2026-06-12T14:00:00Z
+------------------------------------------------------------------------
+PROMPT:
+Update the README.md. The Architecture section should contain a brief explanation of the architecture rather than pointing to the spec. In Validation Scenarios, update it to reference the demo.sh script.
+
+SUMMARY:
+Rewrote the Architecture section with an inline description (PostgreSQL as source of truth, atomic vote transactions, Redis caching + sorted sets for rankings, background reconciliation, JWT auth, rate limiting, observability). Updated Validation Scenarios to enumerate the six demo.sh steps and show the command to run it.
+========================================================================
