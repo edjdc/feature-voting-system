@@ -123,7 +123,7 @@ An authenticated user expects the interface to feel live even though the system 
 - **FR-009**: Users MUST be able to remove an upvote they previously cast, decrementing the count by exactly one and making them eligible to upvote that request again later.
 - **FR-010**: The vote count for a feature request MUST always equal the number of distinct users currently holding an active upvote on it, with no double-counting or lost votes.
 - **FR-011**: The system MUST offer a "Top" ranking that orders feature requests by total active votes, from most to fewest.
-- **FR-012**: The system MUST offer a "Trending" ranking that orders feature requests by recent voting popularity, where more recent votes contribute more weight than older votes (time decay).
+- **FR-012**: The system MUST offer a "Trending" ranking that orders feature requests by recent voting popularity, where more recent votes contribute more weight than older votes (time decay). The decay formula is `score = vote_count / (age_hours + 2)^1.5` (age_hours = hours since request creation); exponent and offset are compile-time constants defined in plan.md.
 - **FR-013**: Each ranking MUST apply a deterministic tiebreaker so that requests with equal ranking scores have a stable, repeatable order across pages and refreshes.
 - **FR-014**: The interface MUST apply optimistic updates so a user's vote (or vote removal) is reflected immediately, before authoritative confirmation.
 - **FR-015**: The interface MUST periodically revalidate displayed vote counts and ranking order against the authoritative state without requiring any real-time push channel.
@@ -158,6 +158,6 @@ An authenticated user expects the interface to feel live even though the system 
 - Editing and deleting feature requests after submission, comments, downvotes, and categorization/tagging are out of scope for this version.
 - Moderation and automatic duplicate detection are out of scope; users self-organize by browsing before submitting.
 - A default page size (around 20 items) is used unless otherwise configured, balancing scannability and load.
-- Reasonable input limits apply (for example, a short title and a multi-paragraph description) and are enforced at submission.
+- Input limits: title 1–100 characters, description 1–5 000 characters (both trimmed of leading/trailing whitespace before validation). These limits are enforced at the handler boundary per FR-003.
 - The "Trending" time-decay weighting is a tunable parameter of the ranking and does not require user configuration; users simply pick "Top" or "Trending".
 - Periodic revalidation runs on a modest interval (on the order of tens of seconds) chosen to feel current without overloading the system, and replaces any need for server-pushed real-time updates.

@@ -224,3 +224,13 @@ PROMPT:
 
 SUMMARY:
 Ran setup-tasks.sh; loaded plan.md, spec.md, data-model.md, contracts/openapi.yaml, quickstart.md, and tasks-template.md. Generated specs/001-feature-voting-system/tasks.md: 73 dependency-ordered tasks across 8 phases (Setup, Foundational, US1 Submit, US2 Browse, US3 Upvote, US4 Rankings, US5 Responsive updates, Polish), organized by user story with test-first tasks per the constitution, [P]/[Story] labels, and exact file paths. No before_tasks hooks; after_tasks hooks not registered (only after_specify/after_plan exist), so none dispatched.
+
+========================================================================
+2026-06-12T14:00:00Z
+------------------------------------------------------------------------
+PROMPT:
+/speckit-analyze
+
+SUMMARY:
+Ran cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md for feature 001-feature-voting-system. Identified 9 findings (0 Critical, 0 High, 5 Medium, 4 Low): trending formula defined only in tasks.md, input length limits underspecified, SC-008 has no test task, top-sort responsibility split across US2/US4, edge-case/assumption conflict on request deletion, plus low-severity items on /health naming, VoteCounter evolution seam, tech stack additions needing constitution amendment, and client-side optimistic-update scope. All 18 FRs and 7/8 SCs have task coverage (SC-008 unaddressed). No constitution violations found.
+========================================================================

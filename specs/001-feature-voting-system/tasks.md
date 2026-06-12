@@ -81,7 +81,7 @@ Single Go web-service project (per plan.md): `cmd/server/`, `internal/{config,ha
 
 ### Tests for User Story 1 (write first, must FAIL) ⚠️
 
-- [ ] T030 [P] [US1] Unit test for request submission validation (empty/whitespace/over-limit title & description) in `internal/service/request_test.go`
+- [ ] T030 [P] [US1] Unit test for request submission validation (empty/whitespace/title >100 chars/description >5 000 chars, both trimmed) in `internal/service/request_test.go`
 - [ ] T031 [P] [US1] Integration test for submit + auth-required (Scenario A) in `tests/integration/submit_test.go`
 - [ ] T032 [P] [US1] E2E test for the submit flow via httptest in `tests/e2e/submit_test.go`
 
@@ -89,7 +89,7 @@ Single Go web-service project (per plan.md): `cmd/server/`, `internal/{config,ha
 
 - [ ] T033 [US1] Add sqlc query `InsertFeatureRequest` in `db/queries/requests.sql` and run `make sqlc`
 - [ ] T034 [P] [US1] Define `FeatureRequest` domain type in `internal/service/request.go`
-- [ ] T035 [US1] Implement `RequestService.Submit` with title/description validation (FR-003) in `internal/service/request.go`
+- [ ] T035 [US1] Implement `RequestService.Submit` with title/description validation (FR-003: title 1–100 chars, description 1–5 000 chars, both trimmed) in `internal/service/request.go`
 - [ ] T036 [US1] Implement `POST /requests` handler (decode, validate, encode `201` FeatureRequest) in `internal/handler/requests.go`
 - [ ] T037 [US1] Register `/requests` POST route behind JWT middleware and wire `RequestService` in `cmd/server/main.go`
 - [ ] T038 [US1] Map validation/domain errors to the `Error` schema (`validation_failed` → 400, `unauthorized` → 401) in `internal/handler/requests.go`
@@ -201,6 +201,7 @@ Single Go web-service project (per plan.md): `cmd/server/`, `internal/{config,ha
 - [ ] T071 [P] Update root `README.md` and `docs/` with run/build/test instructions and architecture overview
 - [ ] T072 Review pgx pool limits, Redis timeouts, and rate-limit defaults for spike resilience (SC-004)
 - [ ] T073 Execute `quickstart.md` Scenarios A–F end-to-end against `docker compose up` and confirm all expected results
+- [ ] T074 [P] Load test for normal-load vote success rate: 50 concurrent distinct voters at steady-state, assert ≥95% first-try success rate (SC-008) in `tests/integration/vote_load_test.go` (`//go:build integration`)
 
 ---
 

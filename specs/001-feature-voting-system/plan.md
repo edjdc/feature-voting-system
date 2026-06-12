@@ -41,6 +41,7 @@ Technical approach (Option A): PostgreSQL is the single source of truth. A vote 
 - One active vote per (user, request) enforced structurally by the `votes` composite PK — exact under concurrency (SC-003).
 - No self-votes (FR-008); no public/anonymous path — every endpoint requires JWT (FR-001).
 - Trending freshness may lag by the recompute interval (1–5 min); `Top` and per-request counts stay live.
+- Trending score formula: `score = vote_count / (age_hours + 2)^1.5`, where `age_hours` = hours elapsed since request creation. Exponent `1.5` and offset `2` are compile-time constants, not user-configurable. Referenced by FR-012; implemented in `internal/ranking/trending.go`.
 - No WebSocket/SSE — optimistic UI + conditional polling only.
 
 **Scale/Scope**: Single-host deployment. 18 functional requirements, 5 user stories, 8 success criteria. Read-heavy domain (reads dominate writes); the hard path is read/ranking, not vote-write.
