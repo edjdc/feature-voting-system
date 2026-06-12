@@ -27,7 +27,7 @@ These were resolved up front and are treated as **fixed** across all three optio
 | **Ranking** | Two views: **Top** (raw count) + **Trending** (time-decay) | Trending maintained in a Redis sorted set (ZSET); recomputed periodically |
 | **Deployment** | Docker Compose (local) | Single-host: app + Postgres + Redis run as Compose services; no orchestration overhead |
 | **First-class prod scope** | Observability, CI/CD & testing | Logs/metrics/traces/probes; test pyramid + pipeline are designed, not name-dropped |
-| **Mention-only** | Rate limiting/abuse prevention, request lifecycle/status | Designed-for seams left open, not fully built in v1 |
+| **Mention-only** | Rate limiting/abuse prevention | Designed-for seam left open, not fully built in v1 |
 
 ### 1.3 The key insight that frames everything
 A feature-voting system is **overwhelmingly read-heavy**. Even a "viral" request accumulates thousands of votes over hours — *not* millions of writes per second. The hard problem is the **read/ranking path** (listing + sorting + counts on every page load), **not** the vote-write path.
@@ -61,7 +61,6 @@ CREATE TABLE feature_requests (
     title       TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     vote_count  INTEGER NOT NULL DEFAULT 0,     -- denormalized counter (read-path optimization)
-    status      TEXT NOT NULL DEFAULT 'open',   -- lifecycle seam (open/planned/in_progress/shipped/declined)
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

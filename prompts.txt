@@ -122,3 +122,12 @@ to 1.0.0 ratified 2026-06-12. Reviewed all dependent templates
 (plan-template.md, spec-template.md, tasks-template.md) — no updates
 required; they are already compatible.
 ========================================================================
+========================================================================
+2026-06-12T00:00:00Z
+------------------------------------------------------------------------
+PROMPT:
+To simplify the proposal, remove the lifecycle support defined in @docs/research/feature-voting-architecture.md
+
+SUMMARY:
+Removed lifecycle/status support from the architecture document: deleted the `status` column from the feature_requests DDL, removed "request lifecycle/status" from the Mention-only row in the constraints table.
+========================================================================
