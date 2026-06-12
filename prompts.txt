@@ -87,3 +87,20 @@ fields per entry (ISO 8601 timestamp, verbatim PROMPT, SUMMARY), provided an
 exact entry template with delimiters, and explicitly stated that omitting the
 verbatim prompt is incorrect.
 ========================================================================
+========================================================================
+2026-06-12T01:30:00Z
+------------------------------------------------------------------------
+PROMPT:
+Update the research. Let's simplify it by removing Kubernetes and running
+everything locally using only Docker Compose.
+
+SUMMARY:
+Updated docs/research/feature-voting-architecture.md throughout: replaced the
+K8s deployment constraint with Docker Compose (app + postgres + redis
+services), removed read replicas, updated §1.3 key insight, §1.4 shared
+foundation, all three option deployment sections, §3.1 scoring weights
+(scalability reduced from 20% to 10%; maintainability/effort/consistency
+increased), §3.2 scorecard (new totals: A=4.73, B=3.50, C=3.08), §3.3
+ranking rationale, §4.1 recommendation, §4.3 v1 stack, §4.4 trade-offs,
+§4.5 risks, and §4.6 bottom line.
+========================================================================

@@ -25,14 +25,14 @@ These were resolved up front and are treated as **fixed** across all three optio
 | **Identity** | Authenticated users (JWT) | One-vote-per-request enforced by a DB uniqueness constraint; trustworthy counts |
 | **Real-time** | Optimistic UI + polling | No WebSocket/SSE fan-out → app tier stays stateless and trivially horizontal |
 | **Ranking** | Two views: **Top** (raw count) + **Trending** (time-decay) | Trending maintained in a Redis sorted set (ZSET); recomputed periodically |
-| **Deployment** | Cloud-agnostic Docker + Kubernetes | Managed Postgres (primary + read replicas) + managed Redis; HPA autoscaling |
+| **Deployment** | Docker Compose (local) | Single-host: app + Postgres + Redis run as Compose services; no orchestration overhead |
 | **First-class prod scope** | Observability, CI/CD & testing | Logs/metrics/traces/probes; test pyramid + pipeline are designed, not name-dropped |
 | **Mention-only** | Rate limiting/abuse prevention, request lifecycle/status | Designed-for seams left open, not fully built in v1 |
 
 ### 1.3 The key insight that frames everything
-A feature-voting system is **overwhelmingly read-heavy**. Even a "viral" request accumulates thousands of votes over hours — *not* millions of writes per second. The hard scaling problem is the **read/ranking path** (listing + sorting + counts on every page load by every client), **not** the vote-write path.
+A feature-voting system is **overwhelmingly read-heavy**. Even a "viral" request accumulates thousands of votes over hours — *not* millions of writes per second. The hard problem is the **read/ranking path** (listing + sorting + counts on every page load), **not** the vote-write path.
 
-➡️ **Strategy:** optimize reads aggressively (cached counts, Redis ZSET rankings, read replicas, cursor pagination, cheap conditional polling) while keeping the write path **simple and correct**. This insight is what drives the final recommendation.
+➡️ **Strategy:** optimize reads aggressively (cached counts, Redis ZSET rankings, cursor pagination, cheap conditional polling) while keeping the write path **simple and correct**. Running locally under Docker Compose removes the need for horizontal scaling machinery — but this same architecture maps cleanly onto a single-node production deployment (a VPS or container PaaS) with no structural changes.
 
 ### 1.4 Shared foundation (common to all three options)
 - **Language/runtime:** Go (static binary, distroless/scratch image)
@@ -40,7 +40,7 @@ A feature-voting system is **overwhelmingly read-heavy**. Even a "viral" request
 - **Cache / ranking store:** Redis (cached counts + `Top`/`Trending` ZSETs + rate-limit buckets)
 - **Data access:** `pgx` driver + `sqlc` (type-safe queries) or `sqlc`-generated repos; `golang-migrate` for migrations
 - **AuthN:** JWT (short-lived access token + refresh token); `argon2id` password hashing or OAuth/social
-- **Deploy:** Docker → Kubernetes `Deployment` (stateless) behind an Ingress/LB, HPA on CPU/RPS, managed Postgres + Redis, secrets via `Secret`/CSI
+- **Deploy:** Docker Compose — `app`, `postgres`, `redis` as named services; `depends_on` + health-check ordering; env vars via `.env` / `env_file`; named volumes for Postgres + Redis persistence; `docker compose up` spins the full stack
 - **Observability:** `log/slog` (structured JSON), Prometheus `/metrics` (RED), OpenTelemetry traces, `/healthz` + `/readyz`
 - **Clients:** Web (SPA) + mobile share one API; **cursor/keyset pagination**, `ETag`/`Last-Modified` for cheap polling
 
@@ -125,12 +125,12 @@ All three share §1.4–§1.7. **They differ on the vote-counting & consistency 
 - **Ranking:** `Top` from `idx_fr_top`/ZSET; `Trending` recomputed by a periodic job.
 - **Dup prevention / identity:** JWT + `votes` PK. Rate-limit seam via Redis token bucket.
 - **Real-time:** optimistic UI + polling (§1.7).
-- **Deployment / scaling:** stateless app → HPA; **reads scale via replicas + Redis**; writes scale until single-row contention on a viral request.
+- **Deployment:** `docker compose up` — `app` + `postgres` + `redis` services; multi-stage build keeps the image small; reads served from Redis cache, falling back to Postgres on miss.
 
 | Criterion | Assessment |
 |---|---|
-| Performance | Fast at moderate write rates; hot-row lock contention under a viral spike. Reads are cache-fast. |
-| Scalability | Read path scales freely; write path bounded by per-row contention (mitigable, rarely hit in this domain). |
+| Performance | Fast at the expected local/single-node load; reads are cache-fast. Row-level lock contention is a non-issue at this scale. |
+| Scalability | More than adequate for single-host Docker Compose; maps cleanly to a single-node VPS deployment without structural changes. |
 | Consistency | **Strongest** — counts are transactionally exact, always. |
 | Complexity / maintainability | **Lowest** — one source of truth, few moving parts, easy to reason about and test. |
 | Go ecosystem maturity | Excellent — `chi`, `pgx`, `sqlc`, `golang-migrate` all battle-tested. |
@@ -152,7 +152,7 @@ All three share §1.4–§1.7. **They differ on the vote-counting & consistency 
 - **Ranking:** ZSETs updated on the same Redis `INCR` path — rankings are *instantly* fresh.
 - **Dup prevention / identity:** JWT; dedup via `votes` PK and/or Redis set; same rate-limit story.
 - **Real-time:** optimistic UI + polling, but counts converge faster (Redis is already live).
-- **Deployment / scaling:** add a write-back worker `Deployment`; Redis becomes a tier-0 dependency (HA/replica + AOF required).
+- **Deployment:** add a write-back worker as an additional Compose service (or a goroutine inside the app container); Redis AOF enabled for durability within the Compose stack.
 
 | Criterion | Assessment |
 |---|---|
@@ -176,7 +176,7 @@ All three share §1.4–§1.7. **They differ on the vote-counting & consistency 
 - **Ranking:** consumers maintain ZSETs as they apply events.
 - **Dup prevention / identity:** JWT at the edge; idempotent apply at the consumer.
 - **Real-time:** the same consumer can also fan out to SSE/WebSocket later for *true* push — but per the alignment we still ship optimistic UI + polling.
-- **Deployment / scaling:** producers, broker, and consumers scale **independently**; full audit/replay of the vote stream. Highest operational surface (run/operate a broker).
+- **Deployment:** broker (Kafka/NATS/Redis Streams) + producer + consumer + app all as Compose services; highest number of containers and the most `depends_on` / health-check wiring in the stack.
 
 | Criterion | Assessment |
 |---|---|
@@ -193,16 +193,16 @@ All three share §1.4–§1.7. **They differ on the vote-counting & consistency 
 ## 3. Comparison & Scoring
 
 ### 3.1 Weighting (explicit) and rationale
-The assessment rewards system-design thinking *and* a polished, production-ready result on a realistic-but-take-home scope. The brief suggested an even 25/25/25/25 across performance, scalability, maintainability, and effort. I refine it to **six** criteria so the two decision-critical dimensions for *this* domain — **consistency** (vote counts must be trustworthy) and **maintainability** (a take-home is judged on clarity) — are represented, while keeping scalability and effort prominent:
+The assessment rewards system-design thinking *and* a polished, production-ready result. With Docker Compose as the deployment target the *horizontal* scaling story is no longer a differentiator — all three options run on a single host. The scoring therefore shifts weight toward **correctness, maintainability, and development effort** (where the options genuinely differ) while retaining a modest scalability criterion to reward designs that could graduate to a VPS or container PaaS without a rewrite.
 
 | Criterion | Weight | Why this weight |
 |---|---:|---|
-| Scalability | 20% | Core eval dimension; "build for high scale" was a fixed constraint. |
-| Maintainability | 20% | A take-home is read and judged; clarity/operability compounds. |
-| Development effort | 20% | Finite time; over-spend here steals from polish elsewhere. |
+| Maintainability | 25% | A take-home is read and judged; clarity and operability compound. |
+| Development effort | 25% | Finite time; over-spend here steals from polish elsewhere. |
+| Consistency guarantees | 20% | Trustworthy vote counts are the product's core promise. |
 | Performance | 15% | Matters, but the domain is read-heavy and reads are cached in all options. |
-| Consistency guarantees | 15% | Trustworthy vote counts are the product's core promise. |
-| Fit with "production-ready, polished" | 10% | Rewards judgment (not over-/under-engineering) for the actual scope. |
+| Scalability | 10% | Reduced weight: single-host Compose removes horizontal scaling as a differentiator; still rewards designs that could graduate to a VPS. |
+| Fit with "production-ready, polished" | 5% | Rewards judgment (not over-/under-engineering) for the actual scope. |
 
 Scores are 1–5 (5 best). Weighted score = Σ(score × weight).
 
@@ -210,68 +210,66 @@ Scores are 1–5 (5 best). Weighted score = Σ(score × weight).
 
 | Criterion (weight) | A — Sync atomic | B — Cache-aside async | C — Event-driven |
 |---|:--:|:--:|:--:|
-| Scalability (20%) | 3.5 | 4.5 | 5.0 |
-| Maintainability (20%) | 5.0 | 3.0 | 2.5 |
-| Development effort (20%) | 5.0 | 3.0 | 2.0 |
+| Maintainability (25%) | 5.0 | 3.0 | 2.5 |
+| Development effort (25%) | 5.0 | 3.0 | 2.0 |
+| Consistency (20%) | 5.0 | 3.0 | 3.5 |
 | Performance (15%) | 4.0 | 5.0 | 4.0 |
-| Consistency (15%) | 5.0 | 3.0 | 3.5 |
-| Fit / polish (10%) | 4.0 | 4.0 | 3.5 |
-| **Weighted total** | **4.45** | **3.70** | **3.38** |
+| Scalability (10%) | 4.0 | 4.5 | 5.0 |
+| Fit / polish (5%) | 4.5 | 4.0 | 3.0 |
+| **Weighted total** | **4.70** | **3.43** | **2.98** |
 
 **Worked totals**
-- **A:** 3.5·.20 + 5.0·.20 + 5.0·.20 + 4.0·.15 + 5.0·.15 + 4.0·.10 = 0.70+1.00+1.00+0.60+0.75+0.40 = **4.45**
-- **B:** 4.5·.20 + 3.0·.20 + 3.0·.20 + 5.0·.15 + 3.0·.15 + 4.0·.10 = 0.90+0.60+0.60+0.75+0.45+0.40 = **3.70**
-- **C:** 5.0·.20 + 2.5·.20 + 2.0·.20 + 4.0·.15 + 3.5·.15 + 3.5·.10 = 1.00+0.50+0.40+0.60+0.525+0.35 = **3.375 → 3.38**
+- **A:** 5.0·.25 + 5.0·.25 + 5.0·.20 + 4.0·.15 + 4.0·.10 + 4.5·.05 = 1.25+1.25+1.00+0.60+0.40+0.225 = **4.73**
+- **B:** 3.0·.25 + 3.0·.25 + 3.0·.20 + 5.0·.15 + 4.5·.10 + 4.0·.05 = 0.75+0.75+0.60+0.75+0.45+0.20 = **3.50**
+- **C:** 2.5·.25 + 2.0·.25 + 3.5·.20 + 4.0·.15 + 5.0·.10 + 3.0·.05 = 0.625+0.50+0.70+0.60+0.50+0.15 = **3.08**
 
 ### 3.3 Ranking
-1. **🥇 Option A — Synchronous Atomic Increments — 4.45**
-2. **🥈 Option B — Cache-Aside + Async Write-Back — 3.70**
-3. **🥉 Option C — Event-Driven Aggregation — 3.38**
+1. **🥇 Option A — Synchronous Atomic Increments — 4.73**
+2. **🥈 Option B — Cache-Aside + Async Write-Back — 3.50**
+3. **🥉 Option C — Event-Driven Aggregation — 3.08**
 
-**Rationale for the order.** A wins because it is **correct by construction**, the cheapest to build to a polished bar, and — given the domain is read-heavy — its only real weakness (hot-row write contention) is rarely exercised and is mitigable. B trades that correctness for write throughput the workload doesn't actually demand, buying a permanent eventual-consistency/reconciliation tax. C buys the most headroom and the best audit/replay story, but its operational and effort cost is hard to justify for the assessment's scope — it's the right answer to a *bigger* problem than this one.
+**Rationale for the order.** A wins even more decisively under the Docker Compose target. Without horizontal scaling as a differentiator, B and C can no longer justify their correctness/complexity costs — both introduce eventual consistency and extra machinery (write-back worker, broker) that solves a concurrency problem that simply doesn't arise on a single-host deployment. A is **correct by construction**, operationally trivial (`docker compose up`), and the fastest path to a polished result.
 
 ---
 
 ## 4. Recommendation
 
 ### 4.1 Foundation: **Option A — Synchronous Atomic Increments**, with an aggressively optimized read path.
-Build the write path **strongly consistent and simple** (one transaction: idempotent vote insert + counter update), and spend the scaling budget where the load actually is — **reads**:
+Build the write path **strongly consistent and simple** (one transaction: idempotent vote insert + counter update), and optimise reads — the genuinely hot path:
 - Redis **cached counts** + `Top`/`Trending` **ZSETs** as the default read source;
-- Postgres **read replicas** behind the cache for misses and cold pages;
-- **cursor pagination** + `ETag`/`304` polling so list/ranking reads are cheap at any depth and frequency;
-- **stateless** app tier on K8s with **HPA** for horizontal scale.
-
-This directly honors "build for high scale" — it just puts the scale where this product's traffic genuinely concentrates, instead of over-building the write path.
+- Postgres as the durable fallback on cache miss;
+- **cursor pagination** + `ETag`/`304` polling so list/ranking reads are cheap at any depth and polling frequency;
+- `docker compose up` brings the entire stack (app, Postgres, Redis) up in one command.
 
 ### 4.2 Designed-in evolution seam to Option B (don't build it yet)
 Keep counts behind a small `VoteCounter` interface with one synchronous implementation now. Because Redis ZSETs/cached counts already exist in the read path, the **seam to cache-aside write-back is small**. **Gate the switch on observability**: if Prometheus shows lock-wait/latency climbing on hot `feature_requests` rows (a genuinely viral request), promote that path to Redis `INCR` + async write-back behind the same interface. This is the production-minded move — evolve under measured pressure, not speculatively.
 
 ### 4.3 Concrete v1 stack
 - **API:** REST + JSON over `net/http` + `chi`; OpenAPI spec for web/mobile clients.
-- **Store:** PostgreSQL (primary + read replicas), `pgx` + `sqlc`, `golang-migrate`.
+- **Store:** PostgreSQL, `pgx` + `sqlc`, `golang-migrate` (migrations run as a one-shot init container / `command` in Compose before the app starts).
 - **Cache/ranking:** Redis (counts cache, `Top`/`Trending` ZSETs, rate-limit buckets).
 - **Auth:** JWT (access + refresh), `argon2id`; auth middleware; `votes` PK for dedup.
 - **Real-time:** optimistic UI + conditional polling.
-- **Observability (first-class):** `slog` JSON logs, Prometheus RED metrics, OTel traces, `/healthz` + `/readyz`.
-- **CI/CD & testing (first-class):** test pyramid — unit (domain/services), integration via **testcontainers** (real Postgres + Redis), API/e2e via `httptest`; GitHub Actions: `golangci-lint` → test → build/scan image → deploy; migrations gated in the pipeline.
-- **Deploy:** multi-stage Docker → distroless/scratch; K8s `Deployment` + HPA + Ingress; 12-factor config via `ConfigMap`/`Secret`.
+- **Observability (first-class):** `slog` JSON logs, Prometheus `/metrics` (RED), OTel traces, `/healthz` + `/readyz`.
+- **CI/CD & testing (first-class):** test pyramid — unit (domain/services), integration via **testcontainers** (real Postgres + Redis, no mocks), API/e2e via `httptest`; GitHub Actions: `golangci-lint` → test → build image; migrations gated in the pipeline.
+- **Deploy:** multi-stage Docker build (builder → distroless/scratch); `docker-compose.yml` with `app`, `postgres`, `redis` services; `depends_on` + `healthcheck` ordering; named volumes for data persistence; 12-factor config via `.env` / `env_file`.
 
 ### 4.4 Trade-offs accepted
-- **Hot-row write contention** on a single viral request is the known ceiling → mitigated by the §4.2 seam, and (if ever needed earlier) sharded counters or `INSERT`-only counting with periodic rollup.
+- **Single-host only:** Docker Compose doesn't provide horizontal scaling. The architecture (stateless app, Redis as read cache, cursor pagination) is structured so graduating to a container PaaS or a VPS behind a reverse proxy requires only infrastructure changes, not code changes.
 - **Trending freshness** lags by the recompute interval (1–5 min) → acceptable; `Top` and per-request counts stay live.
-- **Polling vs push:** chose simplicity/statelessness over true server push → the §2 Option C/SSE path remains a clean future add if real-time push becomes a requirement.
+- **Polling vs push:** chose simplicity over SSE/WebSocket push → a clean future add if real-time push becomes a requirement.
 
 ### 4.5 Risks & mitigations
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| Viral request → row-lock contention | Low (domain is read-heavy) | Observability-gated switch to cache-aside (§4.2); sharded counters as fallback. |
-| Redis unavailability | Medium | Cache-aside *reads* degrade gracefully to read replicas; counts are always reconcilable from `COUNT(votes)`. |
+| Row-lock contention on a hot request | Very low (single-host; domain is read-heavy) | Redis cache absorbs reads; §4.2 seam to cache-aside write-back if ever measured. |
+| Redis unavailability (container crash) | Low | Reads fall back to Postgres; counts reconcilable from `COUNT(votes)`. `restart: unless-stopped` in Compose. |
 | Denormalized `vote_count` drift | Low | Periodic reconciliation job vs `COUNT(votes)` (source of truth). |
-| Vote spam / abuse | Medium | JWT + `votes` PK kill duplicates; Redis token-bucket rate limiting (seam) for submit/vote floods. |
-| Over-engineering pressure | Medium | Explicitly chose A over C; evolution gated on metrics, not speculation. |
+| Vote spam / abuse | Medium | JWT + `votes` PK kill duplicates; Redis token-bucket rate limiting (seam). |
+| Data loss on `docker compose down -v` | Medium | Named volumes (not anonymous); documented in README; production backup strategy out of scope for local run. |
 
 ### 4.6 Bottom line
-**Start with Option A**: a strongly-consistent, simple write path; an aggressively cached, replica-backed, cursor-paginated read path; stateless horizontal scaling on K8s; observability and CI/CD as first-class citizens. It is the **highest-scoring, lowest-risk, fastest-to-polished** foundation, and it carries a **clearly-designed, metrics-gated evolution path to Option B** for the one scenario where it would ever be needed. This is the foundation recommended for the development phase.
+**Start with Option A**: a strongly-consistent, simple write path; an aggressively cached, cursor-paginated read path; `docker compose up` to run the whole stack; observability and CI/CD as first-class citizens. It is the **highest-scoring, lowest-risk, fastest-to-polished** foundation for a local Docker Compose deployment, and it carries a **clearly-designed, metrics-gated evolution path to Option B** for the one scenario where it would ever be needed. This is the foundation recommended for the development phase.
 
 ---
 
