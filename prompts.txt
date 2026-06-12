@@ -104,3 +104,21 @@ increased), §3.2 scorecard (new totals: A=4.73, B=3.50, C=3.08), §3.3
 ranking rationale, §4.1 recommendation, §4.3 v1 stack, §4.4 trade-offs,
 §4.5 risks, and §4.6 bottom line.
 ========================================================================
+========================================================================
+2026-06-12T00:00:00Z
+------------------------------------------------------------------------
+PROMPT:
+/speckit.constitution Create principles for this project based on the file @docs/Go-development-guidelines.md
+
+SUMMARY:
+Ran the speckit-constitution skill to fill .specify/memory/constitution.md
+from its placeholder template. Derived six core principles (Idiomatic Go &
+Code Clarity, Explicit Error Handling, Test-First Discipline, Concurrency
+Safety, Layered Architecture & Separation of Concerns, Security &
+Observability) from the Go development guidelines document. Added a
+Technology Stack section (chi v5.3.0, pgx v5.10.0, testify v1.11.1, etc.),
+a Pre-Commit Quality Gates section, and a Governance section. Set version
+to 1.0.0 ratified 2026-06-12. Reviewed all dependent templates
+(plan-template.md, spec-template.md, tasks-template.md) — no updates
+required; they are already compatible.
+========================================================================
