@@ -280,3 +280,30 @@ PROMPT:
 SUMMARY:
 Ran speckit-analyze: performed read-only cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md. Produced a structured analysis report with findings, coverage summary, and next actions. No files were modified.
 ========================================================================
+========================================================================
+2026-06-12T00:00:00Z
+------------------------------------------------------------------------
+PROMPT:
+Fix this error: Error: can't load config: the Go language version (go1.24) used to build golangci-lint is lower than the targeted Go version (1.26.4) Failed executing command with error: can't load config: the Go language version (go1.24) used to build golangci-lint is lower than the targeted Go version (1.26.4)
+
+SUMMARY:
+Updated .golangci.yml for golangci-lint v2 compatibility: added `version: "2"`, added `go: "1.26"` under `run:` to resolve the Go version mismatch with go.mod's `go 1.26.4`, moved gofmt/goimports to the new `formatters:` section, restructured per-linter config under `linters.settings:`, and removed `gosimple`/`unused` linters (merged into staticcheck in v2).
+========================================================================
+========================================================================
+2026-06-12T00:00:00Z
+------------------------------------------------------------------------
+PROMPT:
+Fix this error:
+
+Error: Failed to run: Error: Command failed: /home/runner/golangci-lint-2.12.2-linux-amd64/golangci-lint config verify
+jsonschema: "formatters.settings.goimports.local-prefixes" does not validate with "/properties/formatters/properties/settings/properties/goimports/$ref/properties/local-prefixes/type": got string, want array
+jsonschema: "issues" does not validate with "/properties/issues/additionalProperties": additional properties 'exclude-rules' not allowed
+The command is terminated due to an error: the configuration contains invalid elements
+, Error: Command failed: /home/runner/golangci-lint-2.12.2-linux-amd64/golangci-lint config verify
+jsonschema: "formatters.settings.goimports.local-prefixes" does not validate with "/properties/formatters/properties/settings/properties/goimports/$ref/properties/local-prefixes/type": got string, want array
+jsonschema: "issues" does not validate with "/properties/issues/additionalProperties": additional properties 'exclude-rules' not allowed
+The command is terminated due to an error: the configuration contains invalid elements
+
+SUMMARY:
+Fixed two golangci-lint v2 schema validation errors in .golangci.yml: changed goimports.local-prefixes from a string to an array, and moved issues.exclude-rules to linters.exclusions.rules (the correct v2 location). Config now passes `golangci-lint config verify`.
+========================================================================
